@@ -67,6 +67,11 @@ async def cmd_start(message: Message):
     await message.answer(text, reply_markup=kb)
 
 
+@dp.message(Command("help"))
+async def cmd_help(message: Message):
+    await message.answer(t("help", lang_of(message.from_user.id)))
+
+
 @dp.message(Command("history"))
 async def cmd_history(message: Message):
     lang = lang_of(message.from_user.id)
@@ -169,7 +174,8 @@ async def cb_rate(cb: CallbackQuery):
 
 STATUS_LABELS = [("ok", "✅ Ответ найден"), ("no_answer", "🔍 Нет данных в базе"),
                  ("off_topic", "🚫 Не по теме"), ("injection", "🛡 Попытки взлома"),
-                 ("greeting", "👋 Приветствия"), ("error", "⚠️ Ошибки")]
+                 ("greeting", "👋 Приветствия"), ("help", "❔ Просьбы о помощи"),
+                 ("thanks_reply", "🙏 Благодарности"), ("smalltalk", "💬 Small talk"), ("error", "⚠️ Ошибки")]
 
 
 def _pct(part: int, total: int) -> str:
@@ -276,6 +282,7 @@ async def main():
     bot = Bot(settings.telegram_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     await bot.set_my_commands([
         BotCommand(command="start", description="Начать / Бастау"),
+        BotCommand(command="help", description="Помощь / Көмек"),
         BotCommand(command="topics", description="Темы / Тақырыптар"),
         BotCommand(command="quiz", description="Викторина"),
         BotCommand(command="history", description="История / Тарих"),

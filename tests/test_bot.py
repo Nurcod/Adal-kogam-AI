@@ -118,3 +118,12 @@ def test_memory_persists_and_forgets():
     assert memory.context("mem-test")[-1] == ("assistant", "Курултай — парламент [1].")
     assert memory.recent_questions("mem-test")[0][0] == "Что такое Курултай?"
     assert memory.forget("mem-test") == 2 and memory.context("mem-test") == []
+
+
+@pytest.mark.parametrize("q,code", [
+    ("помоги мне с командами", "help"), ("что ты умеешь?", "help"), ("Сен кімсің?", "help"),
+    ("Спасибо!", "thanks_reply"), ("Рахмет", "thanks_reply"), ("как дела?", "smalltalk"),
+    ("Помоги понять статью 43 Конституции", None), ("Что такое Курултай?", None),
+])
+def test_smalltalk_intents(q, code):
+    assert precheck(q) == code
