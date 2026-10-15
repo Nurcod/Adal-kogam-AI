@@ -44,16 +44,23 @@ def main():
     docs = yaml.safe_load((ROOT / "scripts" / "sources.yaml").read_text(encoding="utf-8"))
     ok = 0
     for d in docs:
-        print(f"→ {d['title']} ({d['url']})")
-        try:
-            r = requests.get(d["url"], headers=HEADERS, timeout=40)
-            r.raise_for_status()
-            text = extract_text(r.text)
-        except Exception as e:
-            print(f"   ✗ ошибка: {e}")
-            continue
+        print(f"→ {d['title']}")
+        text = ""
+        # Сначала официальный adilet, затем зеркала (adilet иногда отдаёт текст только через JS)
+        for url in [d["url"]] + d.get("mirrors", []):
+            try:
+                r = requests.get(url, headers=HEADERS, timeout=40)
+                r.raise_for_status()
+                text = extract_text(r.text)
+            except Exception as e:
+                print(f"   ✗ {url}: {e}")
+                continue
+            if len(text) >= 2000:
+                print(f"   ✓ загружено с {url}")
+                break
+            print(f"   ✗ {url}: мало текста ({len(text)} символов)")
         if len(text) < 2000:
-            print(f"   ✗ слишком мало текста ({len(text)} символов) — проверьте URL вручную")
+            print("   ✗ не удалось получить текст — скачайте вручную и положите в kb/official/")
             continue
         meta = {
             "title": d["title"], "title_kk": d.get("title_kk", ""), "aliases": d.get("aliases", []),

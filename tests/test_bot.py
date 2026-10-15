@@ -60,8 +60,10 @@ def test_retrieval_finds_kurultai(assistant):
 
 
 def test_answer_has_sources_and_constitution_badge(assistant):
-    a = with_llm(assistant, "Курултай состоит из **145 депутатов** [1].")
-    hits = a.retriever.search(["Курултай 145 депутатов"], k=5)
+    q = "Сколько депутатов в Курултае?"
+    hits = assistant.retriever.search([q, q], k=5)
+    n = next(i for i, h in enumerate(hits, 1) if "145" in h.chunk.text and h.chunk.label)
+    a = with_llm(assistant, f"Курултай состоит из **145 депутатов** [{n}].")
     ans = a.ask("Сколько депутатов в Курултае?", "u1", "test")
     assert ans.status == "ok"
     assert "<b>145 депутатов</b>" in ans.html
@@ -88,3 +90,22 @@ def test_llm_failure_falls_back_to_document_excerpt(assistant):
     assistant.llm = Broken("")
     ans = assistant.ask("Сколько депутатов в Курултае?", "u4", "test")
     assert ans.status == "ok" and ans.fallback
+
+
+@pytest.mark.parametrize("q,expected", [
+    ("Что такое принцип Закон и Порядок?", "Закон и Порядок"),
+    ("Әділетті Қазақстан дегеніміз не?", "Справедливый Казахстан"),
+    ("Что такое Таза Казахстан?", "Таза"),
+    ("Кто такой Адал азамат?", "Адал азамат"),
+    ("Что означает Толық адам?", "Толық адам"),
+    ("Слышащее государство это что?", "Слышащее"),
+])
+def test_ideology_topics_retrieved(assistant, q, expected):
+    hits = assistant.retriever.search([q], k=3)
+    assert any(expected.lower() in h.chunk.title.lower() for h in hits), [h.chunk.title for h in hits]
+
+
+def test_constitution_badge_for_zakon_i_poryadok(assistant):
+    a = with_llm(assistant, "Принцип закреплён в преамбуле [1].")
+    ans = a.ask("Что такое принцип Закон и Порядок?", "u5", "test")
+    assert ans.constitution and "Преамбула" in ans.constitution[0]

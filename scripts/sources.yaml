@@ -5,6 +5,7 @@
   title_kk: Қазақстан Республикасының Конституциясы
   aliases: [конституция, ата заң, негізгі заң]
   url: https://adilet.zan.kz/rus/docs/K2600000000
+  mirrors: [https://zakon.uchet.kz/rus/docs/K2600000000, https://prg.kz/m/amp/document/35502996]
   in_constitution: "{label}"
 
 - id: konstituciya-2026-kaz
@@ -12,6 +13,7 @@
   title_kk: Қазақстан Республикасының Конституциясы
   aliases: [конституция, ата заң, негізгі заң]
   url: https://adilet.zan.kz/kaz/docs/K2600000000
+  mirrors: [https://zakon.uchet.kz/kaz/docs/K2600000000, https://prg.kz/m/amp/document/32817648]
   in_constitution: "{label}"
 
 - id: zakon-o-protivodeistvii-korrupcii
@@ -19,3 +21,4 @@
   title_kk: «Сыбайлас жемқорлыққа қарсы іс-қимыл туралы» ҚР Заңы
   aliases: [коррупция, антикоррупционный, сыбайлас жемқорлық]
   url: https://adilet.zan.kz/rus/docs/Z1500000410
+  mirrors: [https://zakon.uchet.kz/rus/docs/Z1500000410]
