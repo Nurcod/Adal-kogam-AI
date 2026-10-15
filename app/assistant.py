@@ -9,10 +9,9 @@ import html
 import logging
 import re
 import time
-from collections import defaultdict, deque
 from dataclasses import dataclass, field
 
-from app import analytics
+from app import analytics, memory
 from app.config import settings
 from app.guard import precheck
 from app.i18n import detect_lang, t
@@ -55,12 +54,11 @@ class Assistant:
         except Exception as e:  # нет доступа к эмбеддингам — работаем на BM25
             log.warning("Эмбеддинги недоступны (%s), используется только BM25", e)
             self.retriever = Retriever(chunks)
-        self.history: dict[str, deque] = defaultdict(lambda: deque(maxlen=6))
         log.info("База знаний: %d фрагментов из %d документов", len(chunks),
                  len({c.doc_id for c in chunks}))
 
     # ------------------------------------------------------------------
-    def _rewrite(self, question: str, hist: deque) -> str:
+    def _rewrite(self, question: str, hist: list) -> str:
         if not self.llm.enabled:
             return ""
         msgs = [{"role": "system", "content": REWRITE_PROMPT}]
@@ -89,7 +87,7 @@ class Assistant:
         if problem:
             return self._finish(Answer(problem, ui_lang, t(problem, ui_lang)), channel, user_id, question, t0)
 
-        hist = self.history[str(user_id)]
+        hist = memory.context(user_id)  # прошлые реплики пользователя (персонализация)
         rewritten = self._rewrite(question, hist)
         hits = self.retriever.search([question, rewritten], k=settings.top_k)
 
@@ -116,8 +114,8 @@ class Assistant:
             return self._finish(Answer("no_answer", ui_lang, t("no_answer", ui_lang)),
                                 channel, user_id, question, t0)
 
-        hist.append(("user", question))
-        hist.append(("assistant", raw))
+        memory.add(user_id, "user", question)
+        memory.add(user_id, "assistant", raw)
         ans = self._decorate(raw, hits, ui_lang)
         return self._finish(ans, channel, user_id, question, t0, top_doc)
 

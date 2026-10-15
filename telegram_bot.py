@@ -13,7 +13,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import (BotCommand, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup,
                            Message)
 
-from app import analytics, quiz
+from app import analytics, memory, quiz
 from app.assistant import get_assistant
 from app.config import settings
 from app.i18n import t
@@ -56,7 +56,36 @@ async def cmd_start(message: Message):
         InlineKeyboardButton(text="🇰🇿 Қазақша", callback_data="lang:kk"),
         InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang:ru"),
     ]])
-    await message.answer(t("start", lang), reply_markup=kb)
+    text = t("start", lang)
+    last = memory.recent_questions(message.from_user.id, 1)
+    if last:  # пользователь уже общался с ботом — напоминаем, на чём остановились
+        q = html.escape(last[0][0][:100])
+        text = (f"👋 С возвращением! В прошлый раз вы спрашивали: «{q}». Можно продолжить — "
+                f"я помню нашу беседу.\n\n" if lang == "ru" else
+                f"👋 Қайта қош келдіңіз! Өткен жолы сіз сұрадыңыз: «{q}». Әңгімені жалғастыруға "
+                f"болады — мен оны есте сақтадым.\n\n") + text
+    await message.answer(text, reply_markup=kb)
+
+
+@dp.message(Command("history"))
+async def cmd_history(message: Message):
+    lang = lang_of(message.from_user.id)
+    items = memory.recent_questions(message.from_user.id, 5)
+    if not items:
+        await message.answer("История пока пуста." if lang == "ru" else "Тарих әзірге бос.")
+        return
+    head = "🕘 <b>Ваши последние вопросы:</b>" if lang == "ru" else "🕘 <b>Соңғы сұрақтарыңыз:</b>"
+    lines = [head] + [f"{i}. {html.escape(q[:100])}" for i, (q, _) in enumerate(items, 1)]
+    lines.append("\nЧтобы стереть историю — /forget" if lang == "ru" else "\nТарихты өшіру — /forget")
+    await message.answer("\n".join(lines))
+
+
+@dp.message(Command("forget"))
+async def cmd_forget(message: Message):
+    n = memory.forget(message.from_user.id)
+    lang = lang_of(message.from_user.id)
+    await message.answer(f"🧹 История удалена ({n} сообщений). Я больше не помню прошлые беседы."
+                         if lang == "ru" else f"🧹 Тарих өшірілді ({n} хабар).")
 
 
 @dp.message(Command("lang"))
@@ -249,6 +278,8 @@ async def main():
         BotCommand(command="start", description="Начать / Бастау"),
         BotCommand(command="topics", description="Темы / Тақырыптар"),
         BotCommand(command="quiz", description="Викторина"),
+        BotCommand(command="history", description="История / Тарих"),
+        BotCommand(command="forget", description="Стереть историю / Тарихты өшіру"),
         BotCommand(command="lang", description="Язык / Тіл"),
     ])
     log.info("Бот запущен")

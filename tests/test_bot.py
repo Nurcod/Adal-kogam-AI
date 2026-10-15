@@ -32,7 +32,6 @@ def assistant():
 
 def with_llm(a, reply):
     a.llm = FakeLLM(reply)
-    a.history.clear()
     return a
 
 
@@ -109,3 +108,13 @@ def test_constitution_badge_for_zakon_i_poryadok(assistant):
     a = with_llm(assistant, "Принцип закреплён в преамбуле [1].")
     ans = a.ask("Что такое принцип Закон и Порядок?", "u5", "test")
     assert ans.constitution and "Преамбула" in ans.constitution[0]
+
+
+def test_memory_persists_and_forgets():
+    from app import memory
+    memory.forget("mem-test")
+    memory.add("mem-test", "user", "Что такое Курултай?")
+    memory.add("mem-test", "assistant", "Курултай — парламент [1].")
+    assert memory.context("mem-test")[-1] == ("assistant", "Курултай — парламент [1].")
+    assert memory.recent_questions("mem-test")[0][0] == "Что такое Курултай?"
+    assert memory.forget("mem-test") == 2 and memory.context("mem-test") == []
