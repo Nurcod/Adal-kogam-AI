@@ -20,8 +20,8 @@ class FakeLLM:
         sys = messages[0]["content"]
         if "поисковый запрос" in sys:          # переформулировка
             return messages[-1]["content"]
-        if "YES или NO" in sys:                 # классификатор темы
-            return "NO"
+        if "ОДНИМ словом" in sys and "CHAT" in sys:   # классификатор типа сообщения
+            return "OFF" if "плов" in messages[-1]["content"] else "TOPIC"
         return self.reply
 
 
@@ -123,7 +123,7 @@ def test_memory_persists_and_forgets():
 @pytest.mark.parametrize("q,code", [
     ("помоги мне с командами", "help"), ("что ты умеешь?", "help"), ("Сен кімсің?", "help"),
     ("Спасибо!", "thanks_reply"), ("Рахмет", "thanks_reply"), ("как дела?", "smalltalk"),
-    ("Ага, понятно", "smalltalk"), ("Түсінікті!", "smalltalk"),
+    ("Ага, понятно", "smalltalk"), ("Түсінікті!", "smalltalk"), ("калайсын", "smalltalk"),
     ("Помоги понять статью 43 Конституции", None), ("Что такое Курултай?", None),
 ])
 def test_smalltalk_intents(q, code):
@@ -157,3 +157,17 @@ def test_follow_up_uses_previous_question(assistant):
     ans = assistant.ask("А почему так решили?", "u-follow", "test")
     assert ans.status == "ok" and seen and "Курултай" in seen[0]
     memory.forget("u-follow")
+
+
+def test_rude_small_talk_gets_chat_reply_not_no_answer(assistant):
+    class Chatty(FakeLLM):
+        def chat(self, messages, **kw):
+            sys = messages[0]["content"]
+            if "CHAT" in sys and "ОДНИМ словом" in sys:
+                return "CHAT"
+            if "общается" in sys:
+                return "Всё жақсы! Қандай сұрағыңыз бар? 🙂"
+            return "NO_ANSWER"
+    assistant.llm = Chatty("")
+    ans = assistant.ask("котакбас адамша сойлесей", "u-rude", "test")
+    assert ans.status == "smalltalk" and "сұрағыңыз" in ans.html

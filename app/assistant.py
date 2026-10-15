@@ -16,7 +16,7 @@ from app.config import settings
 from app.guard import precheck
 from app.i18n import detect_lang, t
 from app.llm import LLM
-from app.prompts import CHAT_PROMPT, REWRITE_PROMPT, SYSTEM_PROMPT, build_context
+from app.prompts import CHAT_PROMPT, CLASSIFY_PROMPT, REWRITE_PROMPT, SYSTEM_PROMPT, build_context
 from app.rag.loader import load_kb
 from app.rag.retriever import Retriever
 
@@ -105,11 +105,7 @@ class Assistant:
         best_cov = max((h.coverage for h in hits), default=0)
         best_cos = max((h.cosine for h in hits), default=0)
         if not hits or (best_cov < settings.min_score and best_cos < 0.55):
-            if self._is_off_topic(question):
-                return self._finish(self._chat_answer("off_topic", question, hist, ui_lang, user_id),
-                                    channel, user_id, question, t0)
-            return self._finish(Answer("no_answer", ui_lang, t("no_answer", ui_lang)),
-                                channel, user_id, question, t0)
+            return self._finish(self._not_found(question, hist, ui_lang, user_id), channel, user_id, question, t0)
 
         top_doc = hits[0].chunk.title
         if not self.llm.enabled:
@@ -125,8 +121,7 @@ class Assistant:
             return self._finish(self._chat_answer("off_topic", question, hist, ui_lang, user_id),
                                 channel, user_id, question, t0)
         if raw.strip().startswith("NO_ANSWER") or not raw.strip():
-            return self._finish(Answer("no_answer", ui_lang, t("no_answer", ui_lang)),
-                                channel, user_id, question, t0)
+            return self._finish(self._not_found(question, hist, ui_lang, user_id), channel, user_id, question, t0)
 
         memory.add(user_id, "user", question)
         memory.add(user_id, "assistant", raw)
@@ -152,20 +147,29 @@ class Assistant:
         key = "thanks_reply" if status == "thanks_reply" else status
         return Answer(status, lang, t(key, lang))
 
-    def _is_off_topic(self, question: str) -> bool:
-        """Если в базе ничего не нашлось — уточняем у модели, вопрос вообще по теме или нет,
-        чтобы показать правильное сообщение («не по теме» vs «нет подтверждённых данных»)."""
+    def _not_found(self, question: str, hist: list, lang: str, user_id) -> Answer:
+        """В документах ответа нет. Сначала понимаем, что это за сообщение:
+        просто общение / посторонняя тема — отвечаем живой репликой;
+        вопрос по теме без данных в базе — честное «нет подтверждённой информации» (п. 4.9)."""
+        kind = self._classify(question)
+        if kind == "CHAT":
+            return self._chat_answer("smalltalk", question, hist, lang, user_id)
+        if kind == "OFF":
+            return self._chat_answer("off_topic", question, hist, lang, user_id)
+        return Answer("no_answer", lang, t("no_answer", lang))
+
+    def _classify(self, question: str) -> str:
+        """CHAT — общение, OFF — посторонняя тема, TOPIC — вопрос по теме бота."""
         if not self.llm.enabled:
-            return False
+            return "TOPIC"
         try:
             verdict = self.llm.chat([
-                {"role": "system", "content": "Относится ли вопрос к Конституции, законам, государственному "
-                 "устройству, внутренней политике, общественным ценностям, правовой грамотности или "
-                 "противодействию коррупции в Казахстане? Ответь одним словом: YES или NO."},
-                {"role": "user", "content": question}], temperature=0, max_tokens=3)
-            return verdict.strip().upper().startswith("NO")
+                {"role": "system", "content": CLASSIFY_PROMPT},
+                {"role": "user", "content": question}], temperature=0, max_tokens=5)
+            verdict = verdict.strip().upper()
+            return next((k for k in ("CHAT", "OFF", "TOPIC") if verdict.startswith(k)), "TOPIC")
         except Exception:
-            return False
+            return "TOPIC"
 
     # ------------------------------------------------------------------
     def _generate(self, question, hits, hist) -> str:
