@@ -123,7 +123,19 @@ def test_memory_persists_and_forgets():
 @pytest.mark.parametrize("q,code", [
     ("помоги мне с командами", "help"), ("что ты умеешь?", "help"), ("Сен кімсің?", "help"),
     ("Спасибо!", "thanks_reply"), ("Рахмет", "thanks_reply"), ("как дела?", "smalltalk"),
+    ("Ага, понятно", "smalltalk"), ("Түсінікті!", "smalltalk"),
     ("Помоги понять статью 43 Конституции", None), ("Что такое Курултай?", None),
 ])
 def test_smalltalk_intents(q, code):
     assert precheck(q) == code
+
+
+def test_small_talk_is_answered_by_model(assistant):
+    class Chatty(FakeLLM):
+        def chat(self, messages, **kw):
+            if "просто" in messages[0]["content"] and "общается" in messages[0]["content"]:
+                return "Всё хорошо, спасибо! Хотите узнать, что нового в Конституции 2026?"
+            return super().chat(messages, **kw)
+    assistant.llm = Chatty("")
+    ans = assistant.ask("как дела?", "u-chat", "test")
+    assert ans.status == "smalltalk" and "Конституции 2026" in ans.html
