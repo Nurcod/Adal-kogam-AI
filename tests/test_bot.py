@@ -61,7 +61,9 @@ def test_retrieval_finds_kurultai(assistant):
 def test_answer_has_sources_and_constitution_badge(assistant):
     q = "Сколько депутатов в Курултае?"
     hits = assistant.retriever.search([q, q], k=8)
-    n = next(i for i, h in enumerate(hits, 1) if "145" in h.chunk.text and h.chunk.label)
+    # номер фрагмента из Конституции; не зависит от того, скачаны ли доп. законы в kb/official
+    n = next((i for i, h in enumerate(hits, 1) if "145" in h.chunk.text and h.chunk.in_constitution), None) \
+        or next(i for i, h in enumerate(hits, 1) if h.chunk.in_constitution)
     a = with_llm(assistant, f"Курултай состоит из **145 депутатов** [{n}].")
     ans = a.ask("Сколько депутатов в Курултае?", "u1", "test")
     assert ans.status == "ok"
