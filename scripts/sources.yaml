@@ -1,0 +1,21 @@
+# Официальные тексты для загрузки: python scripts/fetch_sources.py
+# in_constitution: "{label}" -> бот будет помечать ответ номером статьи Конституции
+- id: konstituciya-2026-rus
+  title: Конституция Республики Казахстан (принята на референдуме 15 марта 2026 г.)
+  title_kk: Қазақстан Республикасының Конституциясы
+  aliases: [конституция, ата заң, негізгі заң]
+  url: https://adilet.zan.kz/rus/docs/K2600000000
+  in_constitution: "{label}"
+
+- id: konstituciya-2026-kaz
+  title: Қазақстан Республикасының Конституциясы (2026 жылғы 15 наурыздағы референдумда қабылданған)
+  title_kk: Қазақстан Республикасының Конституциясы
+  aliases: [конституция, ата заң, негізгі заң]
+  url: https://adilet.zan.kz/kaz/docs/K2600000000
+  in_constitution: "{label}"
+
+- id: zakon-o-protivodeistvii-korrupcii
+  title: Закон РК «О противодействии коррупции» от 18 ноября 2015 года № 410-V
+  title_kk: «Сыбайлас жемқорлыққа қарсы іс-қимыл туралы» ҚР Заңы
+  aliases: [коррупция, антикоррупционный, сыбайлас жемқорлық]
+  url: https://adilet.zan.kz/rus/docs/Z1500000410
