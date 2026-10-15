@@ -155,7 +155,7 @@ async function quiz(){
 
 // --- голосовой ввод ---
 let rec=null,chunks=[];
-$("#mic").onclick=async()=>{
+$("#mic").onclick=async()=>{if(!window.isSecureContext||!navigator.mediaDevices){add(lang==="kk"?"🎙 Браузерде дауыс тек HTTPS арқылы жұмыс істейді. Дауыстық сұрақты Telegram-ботқа жіберіңіз.":"🎙 Голосовой ввод в браузере работает только по HTTPS. Отправьте голосовой вопрос в Telegram-бот.","bot no_answer");return}
   if(rec&&rec.state==="recording"){rec.stop();return}
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
