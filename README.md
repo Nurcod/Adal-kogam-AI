@@ -49,6 +49,64 @@ python telegram_bot.py                   # Telegram-бот
 uvicorn web_app:app --port 8095          # веб-версия → http://localhost:8095
 ```
 
+**Шаг 5. Развёртывание на сервере (VPS Namecheap, работает 24/7)**
+
+1. В панели Namecheap заказать VPS с ОС **Ubuntu**. IP-адрес и пароль root придут на почту.
+2. Подключиться к серверу и установить системные пакеты:
+```bash
+ssh root@IP_СЕРВЕРА
+apt update && apt install -y git python3-venv
+```
+3. Выполнить шаги 1–3 в папке `/opt`:
+```bash
+cd /opt && git clone https://github.com/Nurcod/Adal-kogam-AI.git && cd Adal-kogam-AI
+python3 -m venv venv && venv/bin/pip install -r requirements.txt
+cp .env.example .env && nano .env          # вписать ключи
+venv/bin/python scripts/fetch_sources.py
+```
+4. Создать два сервиса systemd — бот и сайт будут запускаться вместе с сервером и сами перезапускаться при сбое:
+```bash
+cat > /etc/systemd/system/adal-bot.service <<'EOF'
+[Unit]
+Description=Adal Kenesshi Telegram bot
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/Adal-kogam-AI
+ExecStart=/opt/Adal-kogam-AI/venv/bin/python telegram_bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /etc/systemd/system/adal-web.service <<'EOF'
+[Unit]
+Description=Adal Kenesshi web
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/Adal-kogam-AI
+ExecStart=/opt/Adal-kogam-AI/venv/bin/uvicorn web_app:app --host 0.0.0.0 --port 8095
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now adal-bot adal-web
+```
+5. Проверить: `systemctl status adal-bot adal-web` — оба `active (running)`; сайт открывается по адресу `http://IP_СЕРВЕРА:8095`. Если не открывается — разрешить порт: `ufw allow 8095`.
+
+**Обновление после изменений в коде:**
+```bash
+cd /opt/Adal-kogam-AI && git pull && systemctl restart adal-bot adal-web
+```
+Логи: `journalctl -u adal-bot -f`
+
 **Альтернатива — Docker:** `docker compose up --build` (запускает бота и веб-версию).
 
 ---
