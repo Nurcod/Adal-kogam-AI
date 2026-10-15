@@ -24,6 +24,8 @@ class LLM:
             raise RuntimeError("LLM_API_KEY не задан")
         kwargs = dict(model=settings.llm_model, messages=messages,
                       temperature=temperature, max_tokens=max_tokens)
+        if "anthropic.com" in settings.llm_base_url:  # Claude 4.7+ не принимает temperature < 1
+            kwargs.pop("temperature")
         # «Думающие» модели (Gemini 2.5) тратят лимит токенов на скрытые рассуждения и могут
         # вернуть пустой ответ. Для справочного бота рассуждения не нужны — отключаем их.
         if settings.llm_reasoning_effort:
