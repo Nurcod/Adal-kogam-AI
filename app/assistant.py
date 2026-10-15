@@ -179,9 +179,14 @@ class Assistant:
         """Резервный режим, если модель недоступна: показываем дословную выдержку из
         самого релевантного официального фрагмента (без генерации — значит, без искажений)."""
         top = hits[0].chunk
-        note = ("⚠️ AI-модель временно недоступна. Выдержка из официального документа:"
-                if lang == "ru" else "⚠️ AI-модель уақытша қолжетімсіз. Ресми құжаттан үзінді:")
-        excerpt = top.text[:900] + ("…" if len(top.text) > 900 else "")
+        note = ("📄 Выдержка из официального документа по вашему вопросу:"
+                if lang == "ru" else "📄 Сұрағыңыз бойынша ресми құжаттан үзінді:")
+        # убираем служебные строки «Источник: URL» — источники показываются отдельным блоком
+        clean = "\n".join(l for l in top.text.split("\n")
+                          if not re.match(r"\s*(Источник|Источники|Дереккөз)\w*\s*:", l)
+                          and not re.match(r"\s*https?://", l))
+        clean = re.sub(r"\s*\(?https?://[^\s)]+\)?", "", clean).strip()
+        excerpt = clean[:900] + ("…" if len(clean) > 900 else "")
         raw = f"{note}\n\n**{top.title}{' — ' + top.label if top.label else ''}**\n{excerpt} [1]"
         return self._decorate(raw, hits[:1], lang, fallback=True)
 

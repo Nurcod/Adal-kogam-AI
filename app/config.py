@@ -24,6 +24,12 @@ class Settings:
     llm_reasoning_effort: str = _env(
         "LLM_REASONING_EFFORT", "none" if "googleapis" in _env("LLM_BASE_URL", "googleapis") else "")
 
+    # Резервная модель: если основная не ответила (лимит, сбой), спрашиваем её.
+    # По умолчанию — Llama на Groq с тем же ключом, что и для голоса. LLM_BACKUP_MODEL= пусто -> выкл.
+    backup_base_url: str = _env("LLM_BACKUP_BASE_URL", "https://api.groq.com/openai/v1")
+    backup_api_key: str = _env("LLM_BACKUP_API_KEY", _env("STT_API_KEY"))
+    backup_model: str = _env("LLM_BACKUP_MODEL", "llama-3.3-70b-versatile")
+
     # Эмбеддинги (необязательно). Пусто -> работает только BM25.
     emb_model: str = _env("EMBEDDINGS_MODEL", "")
 

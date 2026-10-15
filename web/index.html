@@ -80,7 +80,6 @@ textarea:focus{outline:2px solid var(--sky);border-color:transparent}
   <section class="chat">
     <div id="log"></div>
     <form id="f">
-      <button type="button" class="btn mic" id="mic" title="Голосовой вопрос">🎙</button>
       <textarea id="q" placeholder="Задайте вопрос..." maxlength="1500"></textarea>
       <button class="btn send" data-i18n="send">➤</button>
     </form>
@@ -152,24 +151,6 @@ async function quiz(){
   });
   log.scrollTop=log.scrollHeight;
 }
-
-// --- голосовой ввод ---
-let rec=null,chunks=[];
-$("#mic").onclick=async()=>{if(!window.isSecureContext||!navigator.mediaDevices){add(lang==="kk"?"🎙 Браузерде дауыс тек HTTPS арқылы жұмыс істейді. Дауыстық сұрақты Telegram-ботқа жіберіңіз.":"🎙 Голосовой ввод в браузере работает только по HTTPS. Отправьте голосовой вопрос в Telegram-бот.","bot no_answer");return}
-  if(rec&&rec.state==="recording"){rec.stop();return}
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    rec=new MediaRecorder(stream);chunks=[];
-    rec.ondataavailable=e=>chunks.push(e.data);
-    rec.onstop=async()=>{
-      stream.getTracks().forEach(t=>t.stop());$("#mic").classList.remove("rec");
-      const fd=new FormData();fd.append("file",new Blob(chunks,{type:"audio/webm"}),"voice.webm");
-      const r=await fetch("/api/voice",{method:"POST",body:fd});const j=await r.json();
-      if(r.ok&&j.text) ask(j.text); else add(esc(j.detail||I18N[lang].err),"bot no_answer");
-    };
-    rec.start();$("#mic").classList.add("rec");$("#q").placeholder=I18N[lang].rec;
-  }catch(e){add(I18N[lang].err,"bot no_answer")}
-};
 
 $("#f").onsubmit=e=>{e.preventDefault();const v=$("#q").value;$("#q").value="";$("#q").placeholder=I18N[lang].ph;ask(v)};
 $("#q").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("#f").requestSubmit()}});

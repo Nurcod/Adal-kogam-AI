@@ -15,6 +15,9 @@ class LLM:
         self.enabled = bool(settings.llm_api_key)
         self.client = OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key or "none",
                              timeout=40, max_retries=2) if self.enabled else None
+        self.backup = OpenAI(base_url=settings.backup_base_url, api_key=settings.backup_api_key,
+                             timeout=30, max_retries=1) \
+            if self.enabled and settings.backup_api_key and settings.backup_model else None
 
     def chat(self, messages: list[dict], temperature: float = 0.1, max_tokens: int = 2500) -> str:
         if not self.enabled:
@@ -26,12 +29,23 @@ class LLM:
         if settings.llm_reasoning_effort:
             kwargs["reasoning_effort"] = settings.llm_reasoning_effort
         try:
-            resp = self.client.chat.completions.create(**kwargs)
+            try:
+                resp = self.client.chat.completions.create(**kwargs)
+            except Exception as e:
+                if "reasoning" not in str(e).lower() or "reasoning_effort" not in kwargs:
+                    raise
+                kwargs.pop("reasoning_effort")  # провайдер не поддерживает параметр — без него
+                resp = self.client.chat.completions.create(**kwargs)
         except Exception as e:
-            if "reasoning" not in str(e).lower() or "reasoning_effort" not in kwargs:
+            if not self.backup:
                 raise
-            kwargs.pop("reasoning_effort")  # провайдер не поддерживает параметр — без него
-            resp = self.client.chat.completions.create(**kwargs)
+            # Основная модель недоступна (лимит запросов, сбой сети) — спрашиваем резервную
+            log.warning("Основная LLM недоступна (%s), используем резервную %s", str(e)[:120],
+                        settings.backup_model)
+            kwargs.pop("reasoning_effort", None)
+            kwargs["model"] = settings.backup_model
+            kwargs["max_tokens"] = min(max_tokens, 2000)
+            resp = self.backup.chat.completions.create(**kwargs)
         choice = resp.choices[0]
         text = (choice.message.content or "").strip()
         if choice.finish_reason == "length":  # ответ упёрся в лимит — не показываем оборванную фразу
