@@ -139,3 +139,21 @@ def test_small_talk_is_answered_by_model(assistant):
     assistant.llm = Chatty("")
     ans = assistant.ask("как дела?", "u-chat", "test")
     assert ans.status == "smalltalk" and "Конституции 2026" in ans.html
+
+
+def test_follow_up_uses_previous_question(assistant):
+    from app import memory
+    memory.forget("u-follow")
+    memory.add("u-follow", "user", "Что такое Курултай?")
+    memory.add("u-follow", "assistant", "Курултай — однопалатный парламент [1].")
+    seen = []
+
+    class Spy(FakeLLM):
+        def chat(self, messages, **kw):
+            if "КОНТЕКСТ" in messages[-1]["content"]:
+                seen.append(messages[-1]["content"])
+            return super().chat(messages, **kw)
+    assistant.llm = Spy("Прямо причина не названа, но Курултай — законодательный орган [1].")
+    ans = assistant.ask("А почему так решили?", "u-follow", "test")
+    assert ans.status == "ok" and seen and "Курултай" in seen[0]
+    memory.forget("u-follow")

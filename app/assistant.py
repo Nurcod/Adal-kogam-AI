@@ -95,7 +95,12 @@ class Assistant:
         if problem:
             return self._finish(Answer(problem, ui_lang, t(problem, ui_lang)), channel, user_id, question, t0)
         rewritten = self._rewrite(question, hist)
-        hits = self.retriever.search([question, rewritten], k=settings.top_k)
+        queries = [question, rewritten]
+        # Короткое уточнение («а почему?», «подробнее») ищем вместе с прошлым вопросом беседы
+        if hist and len(question) < 60:
+            last_q = next((c for r, c in reversed(hist) if r == "user"), "")
+            queries.append(f"{last_q} {question}")
+        hits = self.retriever.search(queries, k=settings.top_k)
 
         best_cov = max((h.coverage for h in hits), default=0)
         best_cos = max((h.cosine for h in hits), default=0)
