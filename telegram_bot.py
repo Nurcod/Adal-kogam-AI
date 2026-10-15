@@ -39,12 +39,26 @@ def rating_kb(query_id: int) -> InlineKeyboardMarkup:
     ]])
 
 
+def topics_kb() -> InlineKeyboardMarkup:
+    """Меню всех тем бота кнопками (по две в ряд) + викторина."""
+    buttons = [InlineKeyboardButton(text=title, callback_data=f"topic:{i}")
+               for i, (title, _, _) in enumerate(quiz.TOPICS)]
+    rows = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+    rows.append([InlineKeyboardButton(text="🧠 Викторина", callback_data="quiz_next")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+# На приветствие, «как дела», просьбу о помощи и вопрос не по теме сразу показываем меню тем
+MENU_STATUSES = {"greeting", "smalltalk", "help", "off_topic", "thanks_reply"}
+
+
 async def answer_question(message: Message, text: str, user_id: int | None = None):
     user_id = user_id or message.from_user.id
     await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
     ans = await asyncio.to_thread(get_assistant().ask, text, user_id, "telegram")
     user_lang.setdefault(user_id, ans.lang)
-    markup = rating_kb(ans.query_id) if ans.status == "ok" else None
+    markup = (rating_kb(ans.query_id) if ans.status == "ok"
+              else topics_kb() if ans.status in MENU_STATUSES else None)
     await message.answer(ans.html, reply_markup=markup, disable_web_page_preview=True)
 
 
@@ -69,7 +83,7 @@ async def cmd_start(message: Message):
 
 @dp.message(Command("help"))
 async def cmd_help(message: Message):
-    await message.answer(t("help", lang_of(message.from_user.id)))
+    await message.answer(t("help", lang_of(message.from_user.id)), reply_markup=topics_kb())
 
 
 @dp.message(Command("history"))
@@ -109,9 +123,7 @@ async def cb_lang(cb: CallbackQuery):
 @dp.message(Command("topics"))
 async def cmd_topics(message: Message):
     lang = lang_of(message.from_user.id)
-    rows = [[InlineKeyboardButton(text=title, callback_data=f"topic:{i}")]
-            for i, (title, _, _) in enumerate(quiz.TOPICS)]
-    await message.answer(t("topics", lang), reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+    await message.answer(t("topics", lang), reply_markup=topics_kb())
 
 
 @dp.callback_query(F.data.startswith("topic:"))
