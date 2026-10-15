@@ -19,10 +19,19 @@ class LLM:
     def chat(self, messages: list[dict], temperature: float = 0.1, max_tokens: int = 1200) -> str:
         if not self.enabled:
             raise RuntimeError("LLM_API_KEY не задан")
-        resp = self.client.chat.completions.create(
-            model=settings.llm_model, messages=messages,
-            temperature=temperature, max_tokens=max_tokens,
-        )
+        kwargs = dict(model=settings.llm_model, messages=messages,
+                      temperature=temperature, max_tokens=max_tokens)
+        # «Думающие» модели (Gemini 2.5) тратят лимит токенов на скрытые рассуждения и могут
+        # вернуть пустой ответ. Для справочного бота рассуждения не нужны — отключаем их.
+        if settings.llm_reasoning_effort:
+            kwargs["reasoning_effort"] = settings.llm_reasoning_effort
+        try:
+            resp = self.client.chat.completions.create(**kwargs)
+        except Exception as e:
+            if "reasoning" not in str(e).lower() or "reasoning_effort" not in kwargs:
+                raise
+            kwargs.pop("reasoning_effort")  # провайдер не поддерживает параметр — без него
+            resp = self.client.chat.completions.create(**kwargs)
         return (resp.choices[0].message.content or "").strip()
 
     def embed(self, texts: list[str]) -> list[list[float]]:

@@ -20,6 +20,9 @@ class Settings:
     llm_base_url: str = _env("LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
     llm_api_key: str = _env("LLM_API_KEY")
     llm_model: str = _env("LLM_MODEL", "gemini-2.5-flash")
+    # Для Gemini отключаем «размышления» (иначе возможны пустые ответы); пусто = не передавать
+    llm_reasoning_effort: str = _env(
+        "LLM_REASONING_EFFORT", "none" if "googleapis" in _env("LLM_BASE_URL", "googleapis") else "")
 
     # Эмбеддинги (необязательно). Пусто -> работает только BM25.
     emb_model: str = _env("EMBEDDINGS_MODEL", "")
@@ -37,7 +40,7 @@ class Settings:
     kb_dir: Path = ROOT / "kb"
     data_dir: Path = ROOT / "data"
 
-    top_k: int = int(_env("TOP_K", "5"))
+    top_k: int = int(_env("TOP_K", "8"))
     # Ниже этого порога считаем, что в базе знаний ответа нет (п. 4.9)
     min_score: float = float(_env("MIN_SCORE", "0.12"))
 
