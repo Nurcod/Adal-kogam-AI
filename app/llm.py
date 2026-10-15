@@ -1,6 +1,7 @@
 """Клиенты к моделям. Используется OpenAI-совместимый протокол, поэтому одна и та же
 кодовая база работает с Gemini, OpenAI, Groq (Llama) или локальной моделью через Ollama —
 провайдер меняется только переменными в .env."""
+import base64
 import logging
 
 from openai import OpenAI
@@ -53,6 +54,29 @@ class LLM:
         if choice.finish_reason == "length":  # ответ упёрся в лимит — не показываем оборванную фразу
             text = trim_to_sentence(text)
         return text
+
+    def image_question(self, image: bytes, mime: str = "image/jpeg", caption: str = "") -> str:
+        """Работа с изображениями: модель читает текст/содержимое картинки (скриншот закона,
+        новость, плакат, документ) и формулирует один вопрос для справочного бота.
+        Дальше вопрос идёт обычным путём — поиск по официальным документам и ответ с источниками."""
+        if not self.enabled:
+            raise RuntimeError("LLM_API_KEY не задан")
+        b64 = base64.b64encode(image).decode()
+        task = ("На изображении может быть фрагмент закона или Конституции, новость, плакат, скриншот "
+                "или документ. Сформулируй ОДИН короткий вопрос (до 25 слов), который пользователь хочет "
+                "задать справочному боту по Конституции, законам и внутренней политике Казахстана. "
+                "Пиши на языке текста на изображении (казахский или русский). ")
+        if caption:
+            task += f"Подпись пользователя к изображению: «{caption[:300]}» — учти её как главный вопрос. "
+        task += ("Если на изображении нет ничего по этой теме — ответь ровно словом NONE. "
+                 "Выведи только вопрос, без пояснений.")
+        kwargs = dict(model=settings.llm_model, max_tokens=150, messages=[{"role": "user", "content": [
+            {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
+            {"type": "text", "text": task}]}])
+        if "anthropic.com" not in settings.llm_base_url:
+            kwargs["temperature"] = 0
+        resp = self.client.chat.completions.create(**kwargs)
+        return (resp.choices[0].message.content or "").strip().strip("«»\"")
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         resp = self.client.embeddings.create(model=settings.emb_model, input=texts)

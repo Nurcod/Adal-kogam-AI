@@ -226,6 +226,35 @@ async def cmd_stats_reset(message: Message):
     await message.answer("🧹 Статистика очищена.")
 
 
+# ---------------- изображения ----------------
+@dp.message(F.photo | (F.document & F.document.mime_type.startswith("image/")))
+async def on_image(message: Message):
+    lang = lang_of(message.from_user.id)
+    await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
+    if message.photo:
+        media, mime = message.photo[-1], "image/jpeg"   # самое большое разрешение
+    else:
+        media, mime = message.document, message.document.mime_type
+    if getattr(media, "file_size", 0) and media.file_size > 10 * 1024 * 1024:
+        await message.answer("Изображение слишком большое (макс. 10 МБ)." if lang == "ru"
+                             else "Сурет тым үлкен (ең көбі 10 МБ).")
+        return
+    try:
+        file = await message.bot.get_file(media.file_id)
+        data = await message.bot.download_file(file.file_path)
+        question = await asyncio.to_thread(get_assistant().llm.image_question, data.read(), mime,
+                                           message.caption or "")
+    except Exception as e:
+        log.exception("Image error: %s", e)
+        await message.answer(t("error", lang))
+        return
+    if not question or question.upper().startswith("NONE"):
+        await message.answer(t("image_none", lang))
+        return
+    await message.answer(t("image_heard", lang, text=html.escape(question)))
+    await answer_question(message, question)
+
+
 # ---------------- голос и текст ----------------
 @dp.message(F.voice | F.audio | F.video_note | F.video)
 async def on_voice(message: Message):
@@ -265,8 +294,8 @@ async def on_text(message: Message):
 @dp.message()
 async def on_other(message: Message):
     lang = lang_of(message.from_user.id)
-    await message.answer("Пока я понимаю текст и голосовые сообщения." if lang == "ru"
-                         else "Әзірге мен мәтін мен дауыстық хабарларды түсінемін.")
+    await message.answer("Я понимаю текст, голосовые сообщения и изображения." if lang == "ru"
+                         else "Мен мәтінді, дауыстық хабарларды және суреттерді түсінемін.")
 
 
 @dp.errors()
