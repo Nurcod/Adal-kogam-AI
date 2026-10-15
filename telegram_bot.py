@@ -3,6 +3,7 @@
 Запуск:  python telegram_bot.py
 """
 import asyncio
+import html
 import logging
 
 from aiogram import Bot, Dispatcher, F
@@ -137,17 +138,57 @@ async def cb_rate(cb: CallbackQuery):
     await cb.answer(t("thanks", lang_of(cb.from_user.id)))
 
 
+STATUS_LABELS = [("ok", "✅ Ответ найден"), ("no_answer", "🔍 Нет данных в базе"),
+                 ("off_topic", "🚫 Не по теме"), ("injection", "🛡 Попытки взлома"),
+                 ("greeting", "👋 Приветствия"), ("error", "⚠️ Ошибки")]
+
+
+def _pct(part: int, total: int) -> str:
+    return f"{round(part * 100 / total)}%" if total else "0%"
+
+
 @dp.message(Command("stats"))
 async def cmd_stats(message: Message):
     if message.from_user.id not in settings.admin_ids:
         return
     s = analytics.stats()
-    unanswered = "\n".join(f"• {q[:80]}" for q in s["unanswered"]) or "—"
-    await message.answer(
-        f"📊 <b>Аналитика</b>\nЗапросов: {s['total']} | пользователей: {s['users']}\n"
-        f"Статусы: {s['by_status']}\nЯзыки: {s['by_lang']}\n"
-        f"Ср. время ответа: {s['avg_latency_ms']} мс\n👍 {s['likes']}  👎 {s['dislikes']}\n\n"
-        f"<b>Без ответа (пополнить базу):</b>\n{unanswered}")
+    total = s["total"]
+    if not total:
+        await message.answer("📊 Пока нет ни одного запроса.")
+        return
+    by_status, by_lang, by_ch = s["by_status"], s["by_lang"], s["by_channel"]
+
+    lines = ["📊 <b>Аналитика «Адал Кеңесші»</b>", "",
+             f"👥 Пользователей: <b>{s['users']}</b>",
+             f"💬 Вопросов: <b>{total}</b> (за сутки: {s['today']})",
+             f"⚡️ Среднее время ответа: <b>{s['avg_latency_ms'] / 1000:.1f} с</b>", "",
+             "<b>Результаты</b>"]
+    for key, label in STATUS_LABELS:
+        if by_status.get(key):
+            lines.append(f"{label} — {by_status[key]} ({_pct(by_status[key], total)})")
+
+    lines += ["", "<b>Аудитория</b>",
+              f"🇷🇺 Русский — {by_lang.get('ru', 0)} · 🇰🇿 Қазақша — {by_lang.get('kk', 0)}",
+              f"📱 Telegram — {by_ch.get('telegram', 0)} · 🌐 Веб — {by_ch.get('web', 0)}"]
+    rated = s["likes"] + s["dislikes"]
+    lines.append(f"⭐️ Оценки: 👍 {s['likes']} · 👎 {s['dislikes']}"
+                 + (f" ({_pct(s['likes'], rated)} положительных)" if rated else ""))
+
+    if s["top_docs"]:
+        lines += ["", "<b>📚 Популярные темы</b>"]
+        lines += [f"{i}. {html.escape(t[:60])} — {c}" for i, (t, c) in enumerate(s["top_docs"][:5], 1)]
+    if s["unanswered"]:
+        lines += ["", "<b>❓ Не нашлось в базе</b> (что добавить)"]
+        lines += [f"• {html.escape(q[:70])}" + (f" ×{c}" if c > 1 else "") for q, c in s["unanswered"]]
+    await message.answer("\n".join(lines))
+
+
+@dp.message(Command("stats_reset"))
+async def cmd_stats_reset(message: Message):
+    if message.from_user.id not in settings.admin_ids:
+        return
+    analytics.reset()
+    await message.answer("🧹 Статистика очищена.")
 
 
 # ---------------- голос и текст ----------------

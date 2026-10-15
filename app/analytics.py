@@ -56,7 +56,16 @@ def stats() -> dict:
             "dislikes": q("SELECT COUNT(*) FROM queries WHERE rating=-1")[0][0],
             "top_docs": q("""SELECT top_doc, COUNT(*) c FROM queries WHERE status='ok' AND top_doc!=''
                              GROUP BY top_doc ORDER BY c DESC LIMIT 7"""),
-            # Вопросы без ответа — подсказка, какие документы добавить в базу знаний
-            "unanswered": [r[0] for r in q("""SELECT question FROM queries WHERE status='no_answer'
-                                              ORDER BY ts DESC LIMIT 10""")],
+            "today": _c.execute("SELECT COUNT(*) FROM queries WHERE ts >= ?",
+                                (time.time() - 24 * 3600,)).fetchone()[0],
+            # Вопросы без ответа (с повторами) — подсказка, какие документы добавить в базу знаний
+            "unanswered": q("""SELECT question, COUNT(*) c FROM queries WHERE status='no_answer'
+                               GROUP BY lower(trim(question)) ORDER BY c DESC, MAX(ts) DESC LIMIT 7"""),
         }
+
+
+def reset():
+    """Очистить статистику (например, удалить тестовые запросы перед демонстрацией)."""
+    with _lock:
+        _c.execute("DELETE FROM queries")
+        _c.commit()
