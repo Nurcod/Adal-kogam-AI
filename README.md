@@ -64,9 +64,12 @@ uvicorn web_app:app --port 8095          # веб-версия → http://localh
 | Основная AI-модель | Claude Sonnet 5.5 (Anthropic) |
 | Резервная AI-модель | Llama 3.3 70B (Groq) — если основная недоступна |
 | Распознавание голоса | Whisper large-v3 (Groq) |
+| Распознавание изображений | Claude Sonnet 5.5 (vision) |
 | Поиск по документам (RAG) | алгоритм BM25 со стеммингом для казахского и русского |
 | База данных | SQLite — история бесед и статистика |
 | Тесты | pytest |
+| Хостинг | VPS Namecheap (США), Linux Ubuntu |
+| Запуск 24/7 | systemd: сервисы `adal-bot` и `adal-web`, автоперезапуск при сбое |
 
 ---
 
