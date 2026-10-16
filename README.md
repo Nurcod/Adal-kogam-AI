@@ -107,7 +107,6 @@ cd /opt/Adal-kogam-AI && git pull && systemctl restart adal-bot adal-web
 ```
 Логи: `journalctl -u adal-bot -f`
 
-**Альтернатива — Docker:** `docker compose up --build` (запускает бота и веб-версию).
 
 ---
 
