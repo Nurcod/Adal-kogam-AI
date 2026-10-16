@@ -38,6 +38,8 @@ def with_llm(a, reply):
 def test_language_detection():
     assert detect_lang("Президент неше жылға сайланады?") == "kk"
     assert detect_lang("Сколько депутатов в Курултае?") == "ru"
+    assert detect_lang("Что будет, если я не уступлю место бабушке?") == "ru"
+    assert detect_lang("Адал азамат деген не?") == "kk"
 
 
 def test_stemming_matches_word_forms():
