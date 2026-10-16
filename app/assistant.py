@@ -18,7 +18,7 @@ from app.i18n import detect_lang, t
 from app.llm import LLM
 from app.prompts import CHAT_PROMPT, CLASSIFY_PROMPT, REWRITE_PROMPT, SYSTEM_PROMPT, build_context
 from app.rag.loader import load_kb
-from app.rag.retriever import Retriever
+from app.rag.retriever import tokenize, Retriever
 
 log = logging.getLogger(__name__)
 
@@ -101,6 +101,7 @@ class Assistant:
             last_q = next((c for r, c in reversed(hist) if r == "user"), "")
             queries.append(f"{last_q} {question}")
         hits = self.retriever.search(queries, k=settings.top_k)
+        hits += self._policy_hits(rewritten or question, hits)
 
         best_cov = max((h.coverage for h in hits), default=0)
         best_cos = max((h.cosine for h in hits), default=0)
@@ -157,6 +158,19 @@ class Assistant:
         if kind == "OFF":
             return self._chat_answer("off_topic", question, hist, lang, user_id)
         return Answer("no_answer", lang, t("no_answer", lang))
+
+    def _policy_hits(self, query: str, hits: list) -> list:
+        """Послания, концепции и инициативы Главы государства по той же сфере — отдельным поиском,
+        чтобы они дополняли закон, а не вытесняли статьи из основной выдачи."""
+        have = {h.chunk.id for h in hits}
+        q_set = set(tokenize(query))
+        if not q_set:
+            return []
+        extra = self.retriever.search([f"{query} Послание Главы государства"], k=10)
+        # совпадение считаем только по словам самого вопроса, без добавленного «Послание»
+        return [h for h in extra
+                if h.chunk.doc_id.replace("\\", "/").startswith("ideology/") and h.chunk.id not in have
+                and len(q_set & self.retriever.doc_sets[h.chunk.id]) / len(q_set) >= 0.5][:2]
 
     def _classify(self, question: str) -> str:
         """CHAT — общение, OFF — посторонняя тема, TOPIC — вопрос по теме бота."""
