@@ -22,3 +22,10 @@
   aliases: [коррупция, антикоррупционный, сыбайлас жемқорлық]
   url: https://adilet.zan.kz/rus/docs/Z1500000410
   mirrors: [https://zakon.uchet.kz/rus/docs/Z1500000410]
+
+- id: ugolovnyi-kodeks
+  title: Уголовный кодекс Республики Казахстан от 3 июля 2014 года № 226-V
+  title_kk: Қазақстан Республикасының Қылмыстық кодексі
+  aliases: [уголовный кодекс, УК РК, преступление, уголовная ответственность, наказание, қылмыстық кодекс, қылмыс]
+  url: https://adilet.zan.kz/rus/docs/K1400000226
+  mirrors: [https://zakon.uchet.kz/rus/docs/K1400000226]

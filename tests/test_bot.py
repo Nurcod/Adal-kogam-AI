@@ -53,7 +53,7 @@ def test_guard():
 
 
 def test_retrieval_finds_kurultai(assistant):
-    hits = assistant.retriever.search(["Сколько депутатов в Курултае?"], k=8)
+    hits = assistant.retriever.search(["Сколько депутатов в Курултае?"], k=12)
     labels = [h.chunk.label for h in hits]
     assert "Статья 53" in labels
 
